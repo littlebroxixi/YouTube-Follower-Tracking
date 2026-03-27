@@ -66,7 +66,7 @@ CHANNELS = [
 # =============================================================================
 HOURS_LOOKBACK = 24
 MAX_VIDEOS_PER_CHANNEL = 2
-TRANSCRIPT_MAX_CHARS = 10000
+TRANSCRIPT_MAX_CHARS = 50000
 CACHE_PATH = os.path.join(os.path.dirname(__file__), 'channel_id_cache.json')
 FEED_PATH = os.path.join(os.path.dirname(__file__), 'feed.json')
 
