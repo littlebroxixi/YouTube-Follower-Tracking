@@ -1,0 +1,5 @@
+{
+  "hours_lookback": 24,
+  "max_videos_per_channel": 2,
+  "transcript_max_chars": 10000
+}
