@@ -165,14 +165,16 @@ def summarize(channel, title, url, transcript, kimi_client):
 
 请输出以下格式：
 **核心要点：**
-- 要点1
+- 要点1（2-3句，说清楚观点和逻辑）
 - 要点2
-- 要点3（最多5条）
+- 要点3
+- 要点4
+- 要点5（5-7条，每条要有实质内容）
 
-要求：数字、股票代码、涨跌幅等关键数据必须保留原始数值，简洁清晰。"""
+要求：数字、股票代码、涨跌幅等关键数据必须保留原始数值；每条要点要说清楚博主的核心论点和依据，不能只是一句话带过。"""
 
     resp = kimi_client.chat.completions.create(
-        model='moonshot-v1-8k',
+        model='kimi-k2.5',
         messages=[{'role': 'user', 'content': prompt}],
         temperature=0.3
     )
