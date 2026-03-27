@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-YouTube Follower Tracking - 数据抓取与摘要生成
-    从订阅频道抓取过去24小时的新视频字幕，通过 Kimi API 生成中文摘要
-    输出 feed.json 供 skill 读取
+YouTube Follower Tracking - 数据抓取脚本
+    从订阅频道抓取过去24小时的新视频字幕
+    输出 feed.json 供 skill 读取后由 Claude 实时总结
 
 主要函数
 -------------
@@ -10,12 +10,12 @@ resolve_channel_id    通过 handle 解析频道 ID（带缓存）
 search_channel_id     通过名称搜索频道 ID
 get_recent_videos     获取频道最近视频
 get_transcript        通过 Supadata 获取字幕
-summarize             通过 Kimi API 生成中文摘要
 main                  主函数，输出 feed.json
 
 修改记录
 ----------
 * v1.0.0  2026-03-27  初始版本
+* v1.1.0  2026-03-28  去掉 Kimi，改为存原始字幕供 Claude 实时总结
 
 作者
 -------
@@ -26,7 +26,6 @@ import sys
 import datetime as dt
 import os
 import requests
-from openai import OpenAI
 
 # =============================================================================
 #                             频道列表
@@ -152,45 +151,14 @@ def get_transcript(video_id, api_key):
     return None
 
 
-def summarize(channel, title, url, transcript, kimi_client):
-    '''  通过 Kimi API 生成中文摘要  '''
-    prompt = f"""你是一个财经内容分析师，请用中文对以下 YouTube 视频内容进行简洁总结。
-
-频道：{channel}
-标题：{title}
-链接：{url}
-
-字幕内容：
-{transcript}
-
-请输出以下格式：
-**核心要点：**
-- 要点1（2-3句，说清楚观点和逻辑）
-- 要点2
-- 要点3
-- 要点4
-- 要点5（5-7条，每条要有实质内容）
-
-要求：数字、股票代码、涨跌幅等关键数据必须保留原始数值；每条要点要说清楚博主的核心论点和依据，不能只是一句话带过。"""
-
-    resp = kimi_client.chat.completions.create(
-        model='kimi-k2.5',
-        messages=[{'role': 'user', 'content': prompt}],
-        temperature=0.3
-    )
-    return resp.choices[0].message.content
-
-
 def main():
     yt_key = os.environ.get('YOUTUBE_API_KEY', '')
     supa_key = os.environ.get('SUPADATA_API_KEY', '')
-    kimi_key = os.environ.get('KIMI_API_KEY', '')
 
-    if not yt_key or not supa_key or not kimi_key:
-        print('错误：请设置 YOUTUBE_API_KEY、SUPADATA_API_KEY、KIMI_API_KEY 环境变量', file=sys.stderr)
+    if not yt_key or not supa_key:
+        print('错误：请设置 YOUTUBE_API_KEY 和 SUPADATA_API_KEY 环境变量', file=sys.stderr)
         sys.exit(1)
 
-    kimi_client = OpenAI(api_key=kimi_key, base_url='https://api.moonshot.cn/v1')
     cache = load_cache()
     videos_output = []
 
@@ -217,13 +185,12 @@ def main():
                 print(f'[跳过] 无字幕: {video["title"]}', file=sys.stderr)
                 continue
 
-            print(f'[摘要] {name} - {video["title"][:40]}', file=sys.stderr)
-            summary = summarize(name, video['title'], video['url'], transcript, kimi_client)
+            print(f'[抓取] {name} - {video["title"][:40]}', file=sys.stderr)
             videos_output.append({
                 'channel': name,
                 'title': video['title'],
                 'url': video['url'],
-                'summary': summary
+                'transcript': transcript
             })
 
     save_cache(cache)
@@ -235,7 +202,7 @@ def main():
     with open(FEED_PATH, 'w', encoding='utf-8') as f:
         json.dump(feed, f, ensure_ascii=False, indent=2)
 
-    print(f'完成，共处理 {len(videos_output)} 个视频', file=sys.stderr)
+    print(f'完成，共抓取 {len(videos_output)} 个视频', file=sys.stderr)
 
 
 if __name__ == '__main__':
