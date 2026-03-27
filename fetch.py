@@ -89,11 +89,13 @@ def resolve_channel_id(handle, api_key, cache):
     url = 'https://www.googleapis.com/youtube/v3/channels'
     params = {'part': 'id', 'forHandle': handle, 'key': api_key}
     resp = requests.get(url, params=params, timeout=10)
-    items = resp.json().get('items', [])
+    data = resp.json()
+    items = data.get('items', [])
     if items:
         channel_id = items[0]['id']
         cache[handle] = channel_id
         return channel_id
+    print(f'[debug] resolve_channel_id({handle}) 返回: {data}', file=sys.stderr)
     return None
 
 
