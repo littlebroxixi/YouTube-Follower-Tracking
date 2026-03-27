@@ -151,6 +151,13 @@ def get_transcript(video_id, api_key):
     return None
 
 
+def load_feed():
+    if os.path.exists(FEED_PATH):
+        with open(FEED_PATH, encoding='utf-8') as f:
+            return json.load(f)
+    return {'videos': []}
+
+
 def main():
     yt_key = os.environ.get('YOUTUBE_API_KEY', '')
     supa_key = os.environ.get('SUPADATA_API_KEY', '')
@@ -160,7 +167,14 @@ def main():
         sys.exit(1)
 
     cache = load_cache()
-    videos_output = []
+
+    # 读取旧数据，按频道名分组
+    old_feed = load_feed()
+    old_by_channel = {}
+    for v in old_feed.get('videos', []):
+        old_by_channel.setdefault(v['channel'], []).append(v)
+
+    new_by_channel = {}  # 本次抓到的新视频，按频道分组
 
     for ch in CHANNELS:
         name = ch['name']
@@ -186,7 +200,7 @@ def main():
                 continue
 
             print(f'[抓取] {name} - {video["title"][:40]}', file=sys.stderr)
-            videos_output.append({
+            new_by_channel.setdefault(name, []).append({
                 'channel': name,
                 'title': video['title'],
                 'url': video['url'],
@@ -195,6 +209,17 @@ def main():
 
     save_cache(cache)
 
+    # 合并：有新视频用新的，没有用旧的
+    merged = {}
+    all_channel_names = [ch['name'] for ch in CHANNELS]
+    for name in all_channel_names:
+        if name in new_by_channel:
+            merged[name] = new_by_channel[name]
+        elif name in old_by_channel:
+            merged[name] = old_by_channel[name]
+
+    videos_output = [v for videos in merged.values() for v in videos]
+
     feed = {
         'generated_at': dt.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
         'videos': videos_output
@@ -202,7 +227,8 @@ def main():
     with open(FEED_PATH, 'w', encoding='utf-8') as f:
         json.dump(feed, f, ensure_ascii=False, indent=2)
 
-    print(f'完成，共抓取 {len(videos_output)} 个视频', file=sys.stderr)
+    new_count = sum(len(v) for v in new_by_channel.values())
+    print(f'完成，本次新增 {new_count} 个视频，feed 共 {len(videos_output)} 个视频', file=sys.stderr)
 
 
 if __name__ == '__main__':
