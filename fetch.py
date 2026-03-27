@@ -113,19 +113,19 @@ def search_channel_id(name, api_key, cache):
     return None
 
 
-def get_recent_videos(channel_id, api_key):
-    '''  获取频道最近 N 小时内的视频  '''
-    published_after = (dt.datetime.utcnow() - dt.timedelta(hours=HOURS_LOOKBACK)).strftime('%Y-%m-%dT%H:%M:%SZ')
+def get_recent_videos(channel_id, api_key, latest_only=False):
+    '''  获取频道最近 N 小时内的视频；latest_only=True 时不限时间只取最新 1 条  '''
     url = 'https://www.googleapis.com/youtube/v3/search'
     params = {
         'part': 'snippet',
         'channelId': channel_id,
-        'publishedAfter': published_after,
         'type': 'video',
         'order': 'date',
-        'maxResults': MAX_VIDEOS_PER_CHANNEL,
+        'maxResults': 1 if latest_only else MAX_VIDEOS_PER_CHANNEL,
         'key': api_key
     }
+    if not latest_only:
+        params['publishedAfter'] = (dt.datetime.utcnow() - dt.timedelta(hours=HOURS_LOOKBACK)).strftime('%Y-%m-%dT%H:%M:%SZ')
     resp = requests.get(url, params=params, timeout=10)
     videos = []
     for item in resp.json().get('items', []):
@@ -190,6 +190,10 @@ def main():
             continue
 
         videos = get_recent_videos(channel_id, yt_key)
+        # 没有新视频且该频道也没有旧数据，则抓最新一条做初始填充
+        if not videos and name not in old_by_channel:
+            print(f'[初始化] {name} 无近期视频，抓取最新一条', file=sys.stderr)
+            videos = get_recent_videos(channel_id, yt_key, latest_only=True)
         if not videos:
             continue
 
