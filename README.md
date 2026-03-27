@@ -1,171 +1,164 @@
 # YouTube Follower Tracking
 
-每日自动追踪订阅 YouTube 频道的最新视频，抓取字幕存入 `feed.json`，配合 Claude Code skill 实时生成中文总结，并自动推送到 Notion。
+Automatically tracks your subscribed YouTube channels daily, fetches video transcripts into `feed.json`, and generates Chinese summaries via Claude Code skill — pushed to Notion automatically.
+
+**[中文文档](README.zh.md)**
 
 ---
 
-## 效果预览
+## Preview
 
-每天在 Notion 中自动生成一篇日报，格式如下：
+A daily digest is automatically generated in Notion:
 
 ```
-📺 硅谷101播客 — OpenAI 发布 o3 模型，AGI 还有多远？
+📺 硅谷101播客 — OpenAI releases o3, how far are we from AGI?
 🔗 https://www.youtube.com/watch?v=xxx
 
-💬 一句话核心观点
-博主认为 o3 在数学和编程基准上已超越人类专家水平，但距离通用 AGI 仍差"常识推理"这一关键能力。
+💬 Core Takeaway
+The host argues o3 has surpassed human expert-level performance on math and coding benchmarks, but still lacks "common sense reasoning" — the key gap before true AGI.
 
-🧭 背景与前提
-- 背景：OpenAI 在 2025 年底发布 o3，各项 benchmark 刷新纪录
-- 立场：博主持乐观但审慎态度，认为 benchmark 不等于真实世界能力
+🧭 Background & Premise
+- Context: OpenAI released o3 in late 2025, breaking multiple benchmark records
+- Stance: Host is cautiously optimistic; benchmarks ≠ real-world capability
 
-📌 核心论点
-- o3 在 ARC-AGI 测试得分 87.5%（人类均值 85%），首次超越人类
-- 训练成本约 $1000/任务，推理成本过高是商业化瓶颈
+📌 Key Arguments
+- o3 scored 87.5% on ARC-AGI (human average: 85%) — first to exceed human performance
+- Training cost ~$1,000/task; inference cost remains a commercialization bottleneck
 - ...
 
-🎯 结论 / 建议
-关注 OpenAI 后续降本路线，2026 年是关键节点
+🎯 Conclusion / Recommendation
+Watch OpenAI's cost reduction roadmap — 2026 is a critical inflection point
 
-⚠️ 风险 / 不确定因素
-- benchmark 存在过拟合风险，实际能力可能被高估
+⚠️ Risks & Uncertainties
+- Benchmark overfitting risk; actual capability may be overestimated
 
-🔍 延伸线索
-- ARC-AGI 测试设计理念值得深入了解
+🔍 Follow-up Threads
+- Worth diving into the design philosophy behind ARC-AGI
 ```
 
 ---
 
-## 架构设计
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   第一层：数据抓取                    │
+│               Layer 1: Data Fetching                │
 │                                                     │
-│  GitHub Actions（每天 15:00 北京时间自动触发）         │
+│  GitHub Actions (runs daily at 15:00 Beijing time)  │
 │      ↓                                              │
 │  fetch.py                                           │
-│      ├── YouTube Data API  →  获取频道最新视频        │
-│      ├── Supadata API      →  抓取视频字幕            │
-│      └── 写入 feed.json 并推送到仓库                  │
+│      ├── YouTube Data API  →  fetch latest videos   │
+│      ├── Supadata API      →  fetch transcripts     │
+│      └── write feed.json and push to repo           │
 └─────────────────────────────────────────────────────┘
-                          ↓ feed.json（公开可访问）
+                    ↓ feed.json (publicly accessible)
 ┌─────────────────────────────────────────────────────┐
-│                   第二层：内容总结                    │
+│              Layer 2: Summarization                 │
 │                                                     │
-│  方式 A：手动触发                                     │
+│  Option A: Manual                                   │
 │      Claude Code /YoutuberPointTracking             │
-│          └── 读取 feed.json → 总结 → 保存本地 .md    │
+│          └── read feed.json → summarize → save .md  │
 │                                                     │
-│  方式 B：自动触发（Claude Code /schedule）            │
-│      Remote Agent（每天 15:30 自动运行）              │
-│          └── 读取 feed.json → 总结 → 推送到 Notion   │
+│  Option B: Automated (Claude Code /schedule)        │
+│      Remote Agent (runs daily at 15:30)             │
+│          └── read feed.json → summarize → Notion    │
 └─────────────────────────────────────────────────────┘
 ```
 
-**数据更新逻辑：**
-- 频道今日有新视频 → 用新数据覆盖该频道
-- 频道今日无新视频 → 保留上次数据，不清空
-- 频道首次运行且无历史数据 → 自动抓取最新一条做初始填充
+**Data update logic:**
+- Channel has new video today → overwrite that channel's data
+- Channel has no new video today → keep previous data, nothing is cleared
+- Channel has no historical data → auto-fetch latest video as initial seed
 
-这样 `feed.json` 中始终有内容，不会因为某天博主没更新而出现空白。
+`feed.json` always contains content, even on days when channels don't post.
 
 ---
 
-## 追踪频道（27个）
+## Tracked Channels (27)
 
-| 频道 | 领域 |
-|------|------|
-| 海伦子 Hellen | 美股 / 投资 |
-| 硅谷101播客 | 科技 / 创业 |
-| 美投讲美股 | 美股分析 |
-| 美股先锋 | 美股分析 |
-| 美股博士 | 美股分析 |
-| 老石谈芯 | 芯片 / 科技 |
-| 股市咖啡屋 Stock Cafe | 美股 / 港股 |
-| 视野环球财经 | 宏观财经 |
-| LEI | 市场分析 |
-| PowerUpGammas | 期权策略 |
-| Sober 聊期权 CFA | 期权 / 投资 |
-| SpaceX | 航天科技 |
-| 一口新饭 | 财经 / 生活 |
-| 华尔街阿宝 | 美股 / 财经 |
-| 富翁電視 MTTV | 港台财经 |
-| 小Lin说 | 财经科普 |
-| 小岛大浪吹 | 财经 / 时事 |
-| 投资TALK君 | 美股投资 |
-| BWB - Business With Brian | 商业 / 投资 |
-| 猴哥财经 HG Finance | 美股财经 |
-| 美股查理 | 美股分析 |
-| 美投侃新闻 | 财经新闻 |
-| Nick 美股咖啡館 | 美股分析 |
-| Terry Chen 泰瑞 | 美股 / 投资 |
-| Couch Investor | 投资 |
-| Future Investing | 投资 |
-| 美股投资网 | 美股资讯 |
+| Channel | Category |
+|---------|----------|
+| 海伦子 Hellen | US Stocks / Investing |
+| 硅谷101播客 | Tech / Startups |
+| 美投讲美股 | US Stock Analysis |
+| 美股先锋 | US Stock Analysis |
+| 美股博士 | US Stock Analysis |
+| 老石谈芯 | Chips / Tech |
+| 股市咖啡屋 Stock Cafe | US / HK Stocks |
+| 视野环球财经 | Macro Finance |
+| LEI | Market Analysis |
+| PowerUpGammas | Options Strategy |
+| Sober 聊期权 CFA | Options / Investing |
+| SpaceX | Aerospace |
+| 一口新饭 | Finance / Lifestyle |
+| 华尔街阿宝 | US Stocks / Finance |
+| 富翁電視 MTTV | HK / TW Finance |
+| 小Lin说 | Finance Education |
+| 小岛大浪吹 | Finance / Current Affairs |
+| 投资TALK君 | US Stock Investing |
+| BWB - Business With Brian | Business / Investing |
+| 猴哥财经 HG Finance | US Stock Finance |
+| 美股查理 | US Stock Analysis |
+| 美投侃新闻 | Finance News |
+| Nick 美股咖啡館 | US Stock Analysis |
+| Terry Chen 泰瑞 | US Stocks / Investing |
+| Couch Investor | Investing |
+| Future Investing | Investing |
+| 美股投资网 | US Stock News |
 
-想追踪其他频道？在 `fetch.py` 的 `CHANNELS` 列表中添加即可：
+To track additional channels, add entries to the `CHANNELS` list in `fetch.py`:
 ```python
-{"name": "频道显示名", "handle": "YouTube handle（@后面的部分）"},
+{"name": "Display Name", "handle": "youtube_handle"},
+# Leave handle empty to search by name automatically
 ```
-如果不知道 handle，留空则自动按名称搜索。
 
 ---
 
-## 自行部署
+## Setup
 
-### 第一步：Fork 本仓库
+### 1. Fork this repository
 
-点击右上角 Fork，克隆到你自己的 GitHub 账号。
-
-### 第二步：申请 API Key
+### 2. Get API Keys
 
 **YouTube Data API v3**
-1. 前往 [Google Cloud Console](https://console.cloud.google.com/)
-2. 创建项目 → 启用 YouTube Data API v3
-3. 创建 API 密钥，应用限制选「无」，API 限制选「YouTube Data API v3」
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a project → Enable YouTube Data API v3
+3. Create an API key; set Application restrictions to "None", API restrictions to "YouTube Data API v3"
 
 **Supadata**
-1. 前往 [supadata.ai](https://supadata.ai/) 注册账号
-2. 免费额度：每月 100 次字幕抓取
-3. 在 Dashboard 获取 API Key
+1. Sign up at [supadata.ai](https://supadata.ai/)
+2. Free tier: 100 transcript fetches per month
+3. Copy your API key from the Dashboard
 
-### 第三步：配置 GitHub Secrets
+### 3. Add GitHub Secrets
 
-进入你的仓库 `Settings → Secrets and variables → Actions → New repository secret`，添加两个 Secret：
+Go to your repo → `Settings → Secrets and variables → Actions → New repository secret`:
 
 | Name | Value |
 |------|-------|
-| `YOUTUBE_API_KEY` | 你的 YouTube API Key |
-| `SUPADATA_API_KEY` | 你的 Supadata API Key |
+| `YOUTUBE_API_KEY` | Your YouTube API Key |
+| `SUPADATA_API_KEY` | Your Supadata API Key |
 
-### 第四步：启用 GitHub Actions
+### 4. Enable GitHub Actions
 
-进入仓库的 `Actions` 标签页，点击启用 Workflows。
+Go to the `Actions` tab and enable Workflows. The job runs daily at UTC 07:00 (15:00 Beijing time). You can also trigger it manually via `Run workflow`.
 
-之后每天 UTC 7:00（北京时间 15:00）会自动运行，也可以手动点击 `Run workflow` 立即触发。
-
-### 第五步：安装 Claude Code Skill
-
-将 `SKILL.md` 放入 Claude Code 的 skills 目录：
+### 5. Install the Claude Code Skill
 
 ```bash
-# 创建 skill 文件夹
 mkdir -p ~/.claude/skills/YoutuberPointTracking
-
-# 复制 SKILL.md
 cp SKILL.md ~/.claude/skills/YoutuberPointTracking/SKILL.md
 ```
 
-之后在 Claude Code 中输入 `/YoutuberPointTracking` 即可触发每日总结。
+Then run `/YoutuberPointTracking` in Claude Code to generate today's summary.
 
-### 第六步：配置自动推送到 Notion（可选）
+### 6. Set up Notion auto-push (optional)
 
-使用 Claude Code 的 `/schedule` 功能，创建一个每天 15:30 自动运行的远程 Agent，读取 `feed.json` 并将总结写入 Notion 指定页面。具体配置参考 `SKILL.md`。
+Use Claude Code's `/schedule` to create a daily remote agent at 15:30 that reads `feed.json` and writes the summary to a Notion page. See `SKILL.md` for the full prompt template.
 
 ---
 
-## feed.json 数据格式
+## feed.json Format
 
 ```json
 {
@@ -173,35 +166,29 @@ cp SKILL.md ~/.claude/skills/YoutuberPointTracking/SKILL.md
   "videos": [
     {
       "channel": "硅谷101播客",
-      "title": "视频标题",
+      "title": "Video title",
       "url": "https://www.youtube.com/watch?v=xxx",
-      "transcript": "视频字幕全文（最多 50000 字符）..."
+      "transcript": "Full transcript text (up to 50,000 chars)..."
     }
   ]
 }
 ```
 
-`feed.json` 托管在 GitHub 上，可通过以下地址直接访问：
+Publicly accessible at:
 ```
-https://raw.githubusercontent.com/你的用户名/YouTube-Follower-Tracking/main/feed.json
+https://raw.githubusercontent.com/<your-username>/YouTube-Follower-Tracking/main/feed.json
 ```
 
 ---
 
-## API 配额说明
+## API Quota
 
-YouTube Data API v3 每日免费配额 **10,000 单位**：
+YouTube Data API v3 free daily quota: **10,000 units**
 
-| 操作 | 接口 | 消耗 |
-|------|------|------|
-| 通过 handle 查频道 ID | Channels API | 1 单位 |
-| 查询频道最新视频 | PlaylistItems API | 1 单位 |
-| 通过名称搜索频道 | Search API | 100 单位（尽量避免） |
+| Operation | API | Cost |
+|-----------|-----|------|
+| Resolve channel ID by handle | Channels API | 1 unit |
+| Fetch latest videos | PlaylistItems API | 1 unit |
+| Search channel by name | Search API | 100 units (avoid if possible) |
 
-27 个频道每日正常运行约消耗 **54 单位**，远低于 10,000 上限。
-
----
-
-## 致谢
-
-灵感来自 [zarazhangrui/follow-builder](https://github.com/zarazhangrui/follow-builder)
+Normal daily usage for 27 channels: ~**54 units** — well within the free limit.
