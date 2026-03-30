@@ -68,7 +68,7 @@ curl -s https://raw.githubusercontent.com/littlebroxixi/YouTube-Follower-Trackin
 ```bash
 # 文件名格式：YYYY-MM-DD-digest.md
 DATE=$(date +%Y-%m-%d)
-cat > /Users/tse.sickomode/Desktop/YoutuberPointTracking/${DATE}-YoutuberPointTracking.md << 'DIGEST_EOF'
+cat > ~/Desktop/YoutuberPointTracking/${DATE}-YoutuberPointTracking.md << 'DIGEST_EOF'
 [在此处放入完整的总结内容]
 DIGEST_EOF
 echo "已保存到 ~/Desktop/YoutuberPointTracking/${DATE}-YoutuberPointTracking.md"
